@@ -1,3 +1,4 @@
+from tracemalloc import start
 from PIL import Image
 import numpy as np
 import math
@@ -231,7 +232,7 @@ for i in range(1,len(t)):
 import time
 font = pygame.font.SysFont(None, 55)
 pygame.mixer.init()
-pygame.mixer.music.load('music.mp3')
+#pygame.mixer.music.load('music.mp3')
 def text_screen(text, color, x, y):
     screen_text = font.render(text, True, color)
     screen.blit(screen_text, [x, y]) 
@@ -247,6 +248,7 @@ pygame.draw.rect(screen, border, [0,height-size,width,size+4])
 pygame.draw.rect(screen, border, [width-size,0,size+4,height])
 pygame.draw.rect(screen, border, [size*2,size*2,width-size*4,height-size*4])
 time.sleep(3)
+running=0
 while running:
     # Did the user click the window close button?
 #     k,i=t[j]
@@ -266,7 +268,7 @@ while running:
           running = False
     pygame.display.flip()
     pygame.display.update()
-running=0
+running=1
 while running:
     # Did the user click the window close button?
 #     k,i=t[j]
@@ -314,14 +316,14 @@ running = 0
 j=1
 while running:
     # Did the user click the window close button?
-    k,i=maze1.nstack[j]
+    temp,i=maze1.nstack[j]
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             
             running = False
     
     # Fill the background with white
-    pygame.draw.rect(screen, (255,0,255), [size*(i+2), size*(k+2), size+1, size+1] )
+    pygame.draw.rect(screen, (255,0,255), [size*(i+2), size*(temp+2), size, size] )
     # Draw a solid blue circle in the center
     # Flip the display
     j+=1
@@ -337,4 +339,51 @@ while running:
     pygame.display.update()
     clock.tick(500)
 # Done! Time to quit.
+x,y=0,0
+running = True
+print(len(k),len(k[0]))
+covered=(200,200,255)
+current=(50,255,50)
+timer=(255,255,255)
+font = pygame.font.SysFont(None, int(size+4))
+text_screen("Timer  " ,timer,width/2-size*3,size/4)
+it=time.time()
+f=1
+while running:
+    ct=time.time()-it
+
+    print(ct,"%02d:%02d:%02d"%((ct//(60**2))%60,(ct//60)%60,ct%60))
+    text_screen("%02d:%02d:%02d"%((ct//(60**2))%60,(ct//60)%60,ct%60) ,timer,width/2-size*0.5,size/4)
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+    keys = pygame.key.get_pressed()
+    if y+1<len(k[0]) and (keys[pygame.K_d] or keys[pygame.K_RIGHT]) and (k[x][y+1]!=0):
+      pygame.draw.rect(screen, covered, (size*(y+2),size*(x+2), size+1, size+1))
+      y+=1
+      
+    if y-1>=0 and (keys[pygame.K_a] or keys[pygame.K_LEFT ]) and (k[x][y-1]!=0):
+      pygame.draw.rect(screen, covered, (size*(y+2),size*(x+2), size+1, size+1))
+      y-=1
+    if x+1<len(k) and (keys[pygame.K_s] or keys[pygame.K_DOWN ]) and (k[x+1][y]!=0):
+      pygame.draw.rect(screen, covered, (size*(y+2),size*(x+2), size+1, size+1))
+      x+=1
+    if x-1>=0 and (keys[pygame.K_w] or keys[pygame.K_UP   ]) and (k[x-1][y]!=0):
+      pygame.draw.rect(screen, covered, (size*(y+2),size*(x+2), size+1, size+1))
+      x-=1
+    pygame.draw.rect(screen, current, (size*(y+2),size*(x+2), size+1, size+1))
+    
+    if x==len(k)-1 and y==len(k[0])-1:
+      if f:
+        wt=ct
+        f=0
+      screen.fill((0,0,0))
+      text_screen("You Won in %02d:%02d:%02d"%((wt//(60**2))%60,(wt//60)%60,wt%60), (255,0,0), 100, 350)
+      
+    
+    pygame.display.update()
+    pygame.draw.rect(screen,border,(width/2-size*0.5,0,size*5,size))
+    clock.tick(20)
+# Done! Time to quit.
+pygame.quit()
 pygame.quit()
