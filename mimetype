@@ -1,0 +1,10 @@
+
+url = 'https://ia601209.us.archive.org/15/items/game.of.thrones.season.4.censored.edited/S04E01%20-%20Two%20Swords.mp4'
+
+import requests
+import mimetypes
+
+response = requests.get(url)
+content_type = response.headers['content-type']
+extension = mimetypes.guess_extension(content_type)
+print(extension)

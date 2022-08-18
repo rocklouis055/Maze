@@ -1,10 +1,430 @@
+from tkinter import CENTER
 import cv2
 import pygame
 import numpy as np
 from time import time
-from PIL import Image
+from PIL import Image,ImageOps
 import time as tm
-import matplotlib.pyplot as plt
+import math
+from random import choice
+from warnings import warn
+import heapq
+
+class Node:
+    """
+    A node class for A* Pathfinding
+    """
+
+    def __init__(self, parent=None, position=None):
+        self.parent = parent
+        self.position = position
+
+        self.g = 0
+        self.h = 0
+        self.f = 0
+
+    def __eq__(self, other):
+        return self.position == other.position
+    
+    def __repr__(self):
+      return f"{self.position} - g: {self.g} h: {self.h} f: {self.f}"
+
+    # defining less than for purposes of heap queue
+    def __lt__(self, other):
+      return self.f < other.f
+    
+    # defining greater than for purposes of heap queue
+    def __gt__(self, other):
+      return self.f > other.f
+
+def return_path(current_node):
+    path = []
+    current = current_node
+    while current is not None:
+        path.append(current.position)
+        current = current.parent
+    return path[::-1]  # Return reversed path
+
+
+def astar(maze, start, end, allow_diagonal_movement = False):
+    """
+    Returns a list of tuples as a path from the given start to the given end in the given maze
+    :param maze:
+    :param start:
+    :param end:
+    :return:
+    """
+
+    # Create start and end node
+    start_node = Node(None, start)
+    start_node.g = start_node.h = start_node.f = 0
+    end_node = Node(None, end)
+    end_node.g = end_node.h = end_node.f = 0
+
+    # Initialize both open and closed list
+    open_list = []
+    closed_list = []
+
+    # Heapify the open_list and Add the start node
+    heapq.heapify(open_list) 
+    heapq.heappush(open_list, start_node)
+
+    # Adding a stop condition
+    outer_iterations = 0
+    max_iterations = (len(maze[0]) * len(maze) // 2)
+
+    # what squares do we search
+    adjacent_squares = ((0, -1), (0, 1), (-1, 0), (1, 0),)
+    if allow_diagonal_movement:
+        adjacent_squares = ((0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1),)
+
+    # Loop until you find the end
+    while len(open_list) > 0:
+        outer_iterations += 1
+
+        if outer_iterations > max_iterations:
+          # if we hit this point return the path such as it is
+          # it will not contain the destination
+          warn("giving up on pathfinding too many iterations")
+          # return return_path(current_node)       
+        
+        # Get the current node
+        current_node = heapq.heappop(open_list)
+        closed_list.append(current_node)
+
+        # Found the goal
+        if current_node == end_node:
+            return return_path(current_node)
+
+        # Generate children
+        children = []
+        
+        for new_position in adjacent_squares: # Adjacent squares
+
+            # Get node position
+            node_position = (current_node.position[0] + new_position[0], current_node.position[1] + new_position[1])
+
+            # Make sure within range
+            if node_position[0] > (len(maze) - 1) or node_position[0] < 0 or node_position[1] > (len(maze[len(maze)-1]) -1) or node_position[1] < 0:
+                continue
+
+            # Make sure walkable terrain
+            if maze[node_position[0]][node_position[1]] != 0:
+                continue
+
+            # Create new node
+            new_node = Node(current_node, node_position)
+
+            # Append
+            children.append(new_node)
+
+        # Loop through children
+        for child in children:
+            # Child is on the closed list
+            if len([closed_child for closed_child in closed_list if closed_child == child]) > 0:
+                continue
+
+            # Create the f, g, and h values
+            child.g = current_node.g + 1
+            child.h = ((child.position[0] - end_node.position[0]) ** 2) + ((child.position[1] - end_node.position[1]) ** 2)
+            child.f = child.g + child.h
+
+            # Child is already in the open list
+            if len([open_node for open_node in open_list if child.position == open_node.position and child.g > open_node.g]) > 0:
+                continue
+
+            # Add the child to the open list
+            heapq.heappush(open_list, child)
+
+    warn("Couldn't get a path to destination")
+    return None
+class Maze:
+  def __init__(self,matrix):
+    self.matrix=matrix
+    self.row=len(matrix)
+    self.col=len(matrix[0])
+    self.visited=np.zeros((self.row, self.col))
+    self.count2=0
+    self.count3=0
+    self.valid=0
+    self.loc=[0,0,0,0]
+    self.jstack=[]
+    self.nstack=[]
+    self.dist=0
+  def check(self):
+    for i in range(self.row):
+      for j in range(self.col):
+        if (self.matrix[i][j]==2):
+          self.count2+=1
+          self.loc[0],self.loc[1]=i,j
+        if(self.matrix[i][j]==3): 
+          self.count3+=1
+          self.loc[2],self.loc[3]=i,j
+    if(self.count2==1 and self.count3==1):
+      self.valid=1
+      print("Valid Maze")
+    return(self.valid)
+  # def path(self):
+  #   i=self.loc[0]
+  #   j=self.loc[1]
+  #   self.len=1
+  #   self.count=0
+  #   self.up=0
+  #   self.down=0
+  #   self.left=0
+  #   self.right=0
+  #   while(1):
+  #     self.up=0
+  #     self.down=0
+  #     self.left=0
+  #     self.right=0
+  #     #print(self.jstack)
+  #     if(i==self.loc[2] and j==self.loc[3]):
+  #       print("Found path!")
+  #       break
+  #     elif(i<self.row-1 and self.matrix[i+1][j] and self.visited[i+1][j]!=1):
+  #       self.down+=1
+  #       #i+=1 
+  #     elif(i>0 and self.matrix[i-1][j] and self.visited[i-1][j]!=1):
+  #       self.up+=1
+  #       #i-=1
+  #     elif(j<self.col-1 and self.matrix[i][j+1] and self.visited[i][j+1]!=1):
+  #       self.right+=1
+  #       #j+=1
+  #     elif(j>0 and self.matrix[i][j-1] and self.visited[i][j-1]!=1):
+  #       self.left+=1
+  #       #j-=1
+  #     self.count=self.up+self.down+self.right+self.left
+  #     self.nstack.append([i,j])
+  #     if(self.count>0):
+  #       self.jstack.append([i,j,self.count,len(self.nstack)])
+  #     if(self.right==1):
+  #       j+=1
+  #       self.visited[i][j]=1
+  #     elif(self.down==1):
+  #       i+=1
+  #       self.visited[i][j]=1
+  #     elif(self.up==1):
+  #       i-=1
+  #       self.visited[i][j]=1
+  #     elif(self.left==1):
+  #       j-=1
+  #       self.visited[i][j]=1
+  #     else:
+  #       i,j,self.count,t=self.jstack.pop()
+  #       del self.nstack[t-1:]
+  #   self.temp=[]
+  #   for i in range(self.row):
+  #     self.temp.append([0]*self.col)
+  #   for i,j in self.nstack:
+  #     self.temp[i][j]=1
+  #   return(self.temp)
+  # def block(self,i,j,count):
+  #   if(i>0 and self.visited[i-1][j]==count):
+  #     self.visited[i-1][j]=0
+  #   elif(i<self.col-1 and self.visited[i+1][j]==count):
+  #     self.visited[i+1][j]=0
+  #   elif(j>0 and self.visited[i][j-1]==count):
+  #     self.visited[i][j-1]=0
+  #   elif(j<self.row-1 and self.visited[i][j+1]==count):
+  #     self.visited[i][j+1]=0      
+  def path(self):
+    i=self.loc[0]
+    j=self.loc[1]
+    self.len=1
+    self.count=0
+    self.up=0
+    self.down=0
+    self.left=0
+    self.right=0
+    d=[]
+    b=[]
+    while(1):
+      self.up=0
+      self.down=0
+      self.left=0
+      self.right=0
+      d={}
+      # (li-i)**2+(lj-j)**2
+      #print(i<self.row-1 and self.matrix[i+1][j] and self.visited[i+1][j]!=1,i>0 and self.matrix[i-1][j] and self.visited[i-1][j]!=1,j<self.col-1 and self.matrix[i][j+1] and self.visited[i][j+1]!=1,j>0 and self.matrix[i][j-1] and self.visited[i][j-1]!=1)
+      if(i==self.loc[2] and j==self.loc[3]):
+        print("Found path!")
+        break
+      if(i<self.row-1 and self.matrix[i+1][j] and self.visited[i+1][j]!=1):
+        self.down+=1
+        #i+=1 
+        te=(math.fabs(self.loc[0]-(i))+math.fabs(self.loc[1]-j))+math.fabs(self.loc[2]-(i+1))+math.fabs(self.loc[3]-j)
+        if not te in d:
+          d[te]=[i+1,j]
+        else:
+          d[te+1]=[i+1,j]
+
+      elif(j<self.col-1 and self.matrix[i][j+1] and self.visited[i][j+1]!=1):
+        self.right+=1
+        #j+=1
+        te=math.fabs(self.loc[0]-(i))+math.fabs(self.loc[1]-(j))+math.fabs(self.loc[2]-(i))+math.fabs(self.loc[3]-(j+1))
+        if not te in d:
+          d[te]=[i,j+1]
+        else:
+          d[te+1]=[i,j+1]
+
+      elif(i>0 and self.matrix[i-1][j] and self.visited[i-1][j]!=1):
+        self.up+=1
+        #i-=1
+        te=math.fabs(self.loc[0]-(i))+math.fabs(self.loc[1]-j)+math.fabs(self.loc[2]-(i-1))+math.fabs(self.loc[3]-j)
+        if not te in d:
+          d[te]=[i-1,j]
+        else:
+          d[te+1]=[i-1,j]
+
+      elif(j>0 and self.matrix[i][j-1] and self.visited[i][j-1]!=1):
+        self.left+=1
+        #j-=1
+        te=math.fabs(self.loc[0]-(i))+math.fabs(self.loc[1]-(j))+math.fabs(self.loc[2]-(i))+math.fabs(self.loc[3]-(j-1))
+        if not te in d:
+          d[te]=[i,j-1]
+        else:
+          d[te+1]=[i,j-1]
+      self.count=self.up+self.down+self.right+self.left
+      self.nstack.append([i,j])
+      b={}
+      for i1 in sorted(d.keys(),reverse=1):
+        b[i1]=d[i1]
+      if len(b.keys())>1:
+        print("  ",b)
+      if(self.count>0):
+        self.jstack.append([i,j,self.count,len(self.nstack)])
+      # #print(b,d)
+      # if(self.right==1 and (b[list(b.keys())[-1]])==(i,j+1)):
+      #   j+=1
+      #   self.visited[i][j]=1
+      # elif(self.down==1 and (b[list(b.keys())[-1]])==(i+1,j)):
+      #   i+=1
+      #   self.visited[i][j]=1
+      # elif(self.up==1 and (b[list(b.keys())[-1]])==(i-1,j)):
+      #   i-=1
+      #   self.visited[i][j]=1
+      # elif(self.left==1 and (b[list(b.keys())[-1]])==(i,j-1)):
+      #   j-=1
+      #   self.visited[i][j]=1
+      if self.count>0:
+        i,j=b[list(b.keys())[-1]]
+        self.visited[i][j]=1
+      else:
+        i,j,self.count,t=self.jstack.pop()
+        del self.nstack[t-1:]
+    
+    self.temp=[]
+    for i in range(self.row):
+      self.temp.append([0]*self.col)
+    for i,j in self.nstack:
+      self.temp[i][j]=1
+    return(self.temp)
+  def block(self,i,j,count):
+    if(i>0 and self.visited[i-1][j]==count):
+      self.visited[i-1][j]=0
+    elif(i<self.col-1 and self.visited[i+1][j]==count):
+      self.visited[i+1][j]=0
+    elif(j>0 and self.visited[i][j-1]==count):
+      self.visited[i][j-1]=0
+    elif(j<self.row-1 and self.visited[i][j+1]==count):
+      self.visited[i][j+1]=0
+
+
+def genimage(maze,solved=None,mul=None,name='maze',minpixel=5,resolution=None,row=None,col=None,solvedpath=[0,255,0],path=[255,255,255],wall=[0,0,0],start=[0,255,0],end=[0,0,255],offset=1,save=0):
+  if row==None:
+    row=len(maze)
+  if col==None:
+    col=len(maze[0])
+  if mul is None:
+    if resolution is None:
+      resolution=minpixel*col
+      mul=minpixel
+    elif resolution<col*minpixel:
+      print("Cant generate image!,Change parameters.")
+      return(None,None)
+    else:
+      mul=math.ceil(resolution/col)
+  if offset==1:
+    row+=4
+    col+=4
+    a=np.zeros([row*mul,col*mul,3],dtype='uint8')
+    for i in range(mul):
+      for j in range(row*mul):
+        a[j][i]=a[j][(col-1)*mul+i]=wall
+      for j in range(col*mul):
+        a[i][j]=a[(row-1)*mul+i][j]=wall
+  else:
+    a=np.zeros([row*mul,col*mul,3],dtype='uint8')
+  
+  for i in range(2*mul*offset,(row-2*offset)*mul):
+    for j in range(2*mul*offset,(col-2*offset)*mul):
+      k=maze[(i-2*mul*offset)//mul][(j-2*mul*offset)//mul]
+      l=solved[(i-2*mul*offset)//mul][(j-2*mul*offset)//mul]
+      if l==1 and k<2:
+        a[i][j]=solvedpath
+      elif k==1:
+        a[i][j]=path
+      elif k==2:
+        a[i][j]=start
+      elif k==3:
+        a[i][j]=end
+      else:
+        a[i][j]=wall
+  img = Image.fromarray(a)
+  if(save):
+    img.save(name+'.png')
+  return(img,a)
+
+
+
+# n,m=map(int,input("Enter the dimention M*N :").split())
+
+# initial=[0,0]
+# t2=[]
+# def genMaze(n=4,m=4,initial=[0,0],final=None,infivalue=[2,3],save=0,name="UnsolvedMaze"):
+#   if n*m//4<2:
+#     print("Cant generate image! Change Parameters.")
+#     return
+#   n,m=n//2,m//2
+#   l=np.ones([m,n],dtype="int")
+#   f=np.zeros([m*2-1,n*2-1],dtype="int")
+#   s=[]
+#   i=initial[0]
+#   j=initial[1]
+#   k=[]
+#   t=[]
+#   while(1):
+#     k=[]
+#     t.append([i,j])
+#     if(i-1>=0 and l[i-1][j]==1):k.append([i-1,j])
+#     if(j-1>=0 and l[i][j-1]==1):k.append([i,j-1])
+#     if(i+1<m and l[i+1][j]==1):k.append([i+1,j])
+#     if(j+1<n and l[i][j+1]==1):k.append([i,j+1])
+#     l[i][j]=0
+#     if len(k)>0:
+#       s.append([[i,j],k])
+#       i,j=choice(k)
+#       t2.append([i,j])
+#     if len(k)==0:
+#       a=s.pop()
+#       if(a[0]==initial):
+#         break
+#       else:
+#         i,j=a[0]
+#   pathMaze=[]
+#   for i in range(1,len(t)):
+#     for x in range(2*t[i-1][0],2*t[i][0]+1):
+#       f[x][2*t[i][1]]=1
+#       pathMaze.append([x,2*t[i][1]])
+#     for y in range(2*t[i-1][1],2*t[i][1]+1):
+#       f[2*t[i][0]][y]=1
+#       pathMaze.append([2*t[i][0],y])
+#   f[0][0],f[-1][-1]=infivalue
+#   return(f,pathMaze,t)
+
+
+
 def get_gradient_2d(start, stop, width, height, is_horizontal):
     if is_horizontal:
         return np.tile(np.linspace(start, stop, width), (height, 1))
@@ -36,7 +456,47 @@ def chcolor(surface, color):
 pygame.init()
 pygame.display.set_caption("OpenCV camera stream on Pygame")
 
-def image(capimg,width,height,size,brect,bicon,brectc,biconc,bg):
+def image(capimg,width,height,size,flag,bg=None,f2=0):
+    startloc=endloc=None
+    if bg is None:
+        bg=pygame.image.load("./color_gradient.jpg")
+    biconr=pygame.image.load('./back.png')
+    bicon=pygame.transform.scale(biconr,(3*size,3*size))
+    biconc=bicon.copy()
+    chcolor(biconc,(0,0,0))
+    brect=bicon.get_rect()
+    brectc=biconc.get_rect()
+    brect.center=(width//8,height//8)
+    brectc.center=(width//8,height//8)
+    if flag:
+        c=np.flipud(capimg)
+        c = np.rot90(c,3)
+        c=cv2.flip(c,0)
+        c=cv2.cvtColor(c,cv2.COLOR_BGR2RGB)
+        cv2.imwrite("a1.png",c)
+        cv2.imwrite("a1.jpg",c)
+        cv2.imwrite("a1.jpeg",c)
+        cv2.imwrite("a1.bmp",c)
+        cv2.imwrite("a1.webp",c)
+    #ar=np.zeros(capimg.shape)
+    print(np.shape(capimg))
+    #capimg=cv2.cvtColor(capimg,cv2.COLOR_BGR2HSV)
+    # rw,rh=np.shape(capimg)[0],np.shape(capimg)[1]
+    # a=np.zeros([rw,rh,3])
+    # for i in range(rw):
+    #     for j in range(rh):
+    #         a[i][j]=capimg[i][j]
+    # capimg=a
+    # arr=np.zeros([rw,rh])
+    # #print(arr)
+    # for i in range(rw):
+    #     for j in range(rh):
+    #         s=(sum(capimg[i][j])/3)
+    #         if s>200:
+    #             v=1
+    #         else:
+    #             v=0
+    #         arr[i][j]=v
     surface = pygame.display.set_mode([width,height])
     running =1
     f=1
@@ -55,6 +515,56 @@ def image(capimg,width,height,size,brect,bicon,brectc,biconc,bg):
     butboxclk=(255,255,255)
     conbox=pygame.Rect(0,0,size*6,size*2)
     conbox.center=conrect.center
+    #capimg=np.rot90(capimg,2) #change
+    print(capimg.size,capimg.shape)
+    imgwid,imghei=capimg.shape[0],capimg.shape[1]
+    print("correct ratio",imgwid/imghei,5*width/6,5*height/6)
+    cv2.imwrite("a1.png",capimg)
+    tmpimgwid=int((imgwid/imghei)*(5*height)/6+1)
+    tmpimghei=int((imghei/imgwid)*(5*width)/6+1)
+    print("temp",tmpimgwid,tmpimghei,tmpimgwid/tmpimghei)
+    print("ck 1",tmpimgwid/(5*height/6))
+    print("ck 2",(5*width/6)/tmpimghei)
+    if tmpimghei>(5*height)/6:
+        imghei=int((5*height)/6)
+        imgwid=tmpimgwid
+    elif tmpimgwid>(5*width)/6:
+        imgwid=int((5*width)/6)
+        imghei=tmpimghei
+    print("mod",imgwid,imghei,imgwid/imghei)
+    print("correct",capimg.shape[0]/capimg.shape[1],capimg.shape[1]/capimg.shape[0])
+    capimg=cv2.resize(capimg,dsize=(imghei,imgwid))
+    cv2.imwrite("a2.png",capimg)
+    print(capimg.shape[0]/capimg.shape[1],capimg.shape[1]/capimg.shape[0])
+    #capimg=cv2.resize(capimg,dsize=(5*height//6,5*width//6))
+    #cv2.imwrite("a3.png",capimg)
+    #print(capimg.shape[0]/capimg.shape[1],capimg.shape[1]/capimg.shape[0])
+    #print(capimg)
+    #capimg=cv2.flip(cv2.cvtColor(capimg,cv2.COLOR_BGR2RGB),1)
+    print(capimg[0][0],capimg[0][-1],capimg[-1][-1],capimg[-1][0])
+    a=np.zeros([imgwid,imghei,3])
+    for i in range(imgwid):
+        for j in range(imghei):
+            a[i][j]=capimg[i][j]
+    capimg=a.astype(np.uint8)
+    arr=np.zeros([imgwid,imghei])
+    arr2=np.zeros([imgwid,imghei])
+    #print(arr)
+    for i in range(imgwid):
+        for j in range(imghei):
+            s=(sum(capimg[i][j])/3)
+            if s>200:
+                v=1
+            else:
+                v=0
+            arr[i][j]=v
+            arr2[i][j]=1-v
+    #print(arr)
+   
+    image2 = Image.fromarray(arr.astype(np.uint8))
+    image2.save("a.png")
+    print(capimg[0][0],capimg[0][-1],capimg[-1][-1],capimg[-1][0])
+    
     while running:
         if f==1:
             pygame.init()
@@ -75,18 +585,23 @@ def image(capimg,width,height,size,brect,bicon,brectc,biconc,bg):
             selrect = msgsel.get_rect()
             selrect.center = (width//2,8.7*height//10)
             f+=1
+            surf = pygame.surfarray.make_surface(capimg)
+            rect=surf.get_rect()
+            rect.center=(width//2+1,5*height/12)
+            surface.blit(bg,(0,0))
         if f==2:
             surface.blit(bg,(0,0))
+            
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-                if event.type == pygame.MOUSEBUTTONDOWN and startloc is None and is_over(surf.get_rect(),pygame.mouse.get_pos()):
-                    startloc=pygame.mouse.get_pos()
+                if event.type == pygame.MOUSEBUTTONDOWN and startloc is None and is_over(rect,pygame.mouse.get_pos()):
+                    startloc=(pygame.mouse.get_pos()[0]-rect.x,pygame.mouse.get_pos()[1]-rect.y)
                     msgstartloc = font.render(",".join([str(i) for i in startloc]), 1, (0,0,0))
                     startlocrect = msgstartloc.get_rect()
                     startlocrect.center = startbox.center
-                elif event.type == pygame.MOUSEBUTTONDOWN and endloc is None and is_over(surf.get_rect(),pygame.mouse.get_pos()):
-                    endloc=pygame.mouse.get_pos()
+                elif event.type == pygame.MOUSEBUTTONDOWN and endloc is None and is_over(rect,pygame.mouse.get_pos()):
+                    endloc=(pygame.mouse.get_pos()[0]-rect.x,pygame.mouse.get_pos()[1]-rect.y)
                     msgendloc = font.render(",".join([str(i) for i in endloc]), 1, (0,0,0))
                     endlocrect = msgendloc.get_rect()
                     endlocrect.center = endbox.center
@@ -100,14 +615,14 @@ def image(capimg,width,height,size,brect,bicon,brectc,biconc,bg):
             if c:
                 c=0
                 continue
-            capimg=cv2.resize(capimg,dsize=(5*height//6,5*width//6))
-            surf = pygame.surfarray.make_surface(capimg)
-            surface.blit(surf, (size*3,0))
+            
+            
+            surface.blit(surf, (surf.get_rect(center=rect.center)))
             surface.blit(msgstart,startrect)
             surface.blit(msgend,endrect)
             pygame.draw.rect(surface,(255,255,255),startbox,0,5)
             pygame.draw.rect(surface,(255,255,255),endbox,0,5)
-            pygame.draw.rect(surface,(255,255,255),((size*3,0),(5*width//6,5*height//6)),3,10)
+            pygame.draw.rect(surface,(255,255,255),rect,3,10)
             if not startloc is None:
                 surface.blit(msgstartloc,startlocrect)
             if  not endloc is None:
@@ -126,7 +641,29 @@ def image(capimg,width,height,size,brect,bicon,brectc,biconc,bg):
             else:
                 surface.blit(msgsel,selrect)
         if f==3:
-            pass
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+            if f2:
+                startloc=[imgwid-startloc[0],imghei-startloc[1]]
+                endloc=[imgwid-endloc[0],imghei-endloc[1]]
+            # arr[int(startloc[0]*rw/rh)][int(startloc[1]*rh/rw)]=2
+            # arr[int(endloc[0]*rw/rh)][int(endloc[1]*rh/rw)]=3
+            arr[int(startloc[0])][int(startloc[1])]=2
+            arr[int(endloc[0])][int(endloc[1])]=3
+            print(arr)
+            print(capimg[0][0],capimg[0][-1],capimg[-1][-1],capimg[-1][0])
+
+            maze1=Maze(arr)
+            if(maze1.check()):
+                temp=maze1.path()
+            # temp=astar(arr2,startloc,endloc,1)
+            # print("found path")
+            a,b=genimage(maze=arr,solved=temp,minpixel=5,offset=1,solvedpath=[255,255,255],wall=[47, 37, 74],path=[255,255,255],end=[200,10,10],save=1)
+
+            a,b=genimage(name="final",maze=arr,solved=temp,minpixel=5,offset=1,solvedpath=[230, 21, 153],wall=[47, 37, 74],path=[255,255,255],end=[200,10,10],save=1)
+
+            return(0,0)
         pygame.display.flip()
     return(None,+1)
 def cam(width,height,size,link=0,flip=0,rot=0):
@@ -134,7 +671,7 @@ def cam(width,height,size,link=0,flip=0,rot=0):
     #0 Is the built in camera
     e=(255,216,251)
     s=(79,40,74)
-    array = get_gradient_3d(1366, 768, s,e, (1,1,1))
+    array = get_gradient_3d(width, height, s,e, (1,1,1))
     img=Image.fromarray(np.uint8(array)).convert("RGBA")
     raw=img.tobytes("raw",'RGBA')
     bg = pygame.image.fromstring(raw, img.size, "RGBA")
@@ -145,7 +682,7 @@ def cam(width,height,size,link=0,flip=0,rot=0):
     f=1
     conretcolor=(0,0,0)
     conretclick=(255,255,255)
-    font = pygame.font.Font('freesansbold.ttf', size*2)
+    font = pygame.font.Font('freesansbold.ttf', (720//20))
     msgcon = font.render("Continue", 1, conretcolor)
     msgret = font.render('Retake', True, conretcolor)
     conrect = msgcon.get_rect()
@@ -160,8 +697,8 @@ def cam(width,height,size,link=0,flip=0,rot=0):
     retrectclk.center = (5*1280//6,5*720//6)
     butboxcol=(0,0,0)
     butboxclk=(255,255,255)
-    conbox=pygame.Rect(0,0,size*10,size*3)
-    retbox=pygame.Rect(0,0,size*8,size*3)
+    conbox=pygame.Rect(0,0,(720//20)*7,(720//20)*2)
+    retbox=pygame.Rect(0,0,(720//20)*5,(720//20)*2)
     conbox.center=conrect.center
     retbox.center=retrect.center
     msg1string='On the next screen, take'
@@ -178,7 +715,7 @@ def cam(width,height,size,link=0,flip=0,rot=0):
     c=0
     while running:
         s=time()
-        print(1/(s-e))
+        #print(1/(s-e))
         e=time()
         if f==1:
             pygame.init()
@@ -256,7 +793,7 @@ def cam(width,height,size,link=0,flip=0,rot=0):
 
             fps = cap.get(cv2.CAP_PROP_FPS)
             print("fps:", fps)
-            #If your camera can achieve 60 fps
+            #If your camera can achieve 6 fps
             #Else just have this be 1-30 fps
             cap.set(cv2.CAP_PROP_FPS, 30)
             f+=1
@@ -347,7 +884,8 @@ def cam(width,height,size,link=0,flip=0,rot=0):
             else:
                 surface.blit(biconc,brectc)
         if f==6:
-            a,b=image(capimg,width,height,size,brect,bicon,brectc,biconc,bg)
+            pygame.quit()
+            a,b=image(capimg,width,height,size,1,bg,f2=1)
             if b==-1:
                 f=3
             else:
@@ -355,4 +893,4 @@ def cam(width,height,size,link=0,flip=0,rot=0):
             continue
         pygame.display.flip()
     pygame.quit()
-cam(700,500,20,1,0,1)
+cam(900,600,int(600/25),1,0,1)
